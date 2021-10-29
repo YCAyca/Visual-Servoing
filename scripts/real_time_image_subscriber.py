@@ -12,6 +12,30 @@ import numpy as np
 import yaml
 from std_msgs.msg import UInt8MultiArray
 
+ARUCO_DICT = {
+	"DICT_4X4_50": cv2.aruco.DICT_4X4_50,
+	"DICT_4X4_100": cv2.aruco.DICT_4X4_100,
+	"DICT_4X4_250": cv2.aruco.DICT_4X4_250,
+	"DICT_4X4_1000": cv2.aruco.DICT_4X4_1000,
+	"DICT_5X5_50": cv2.aruco.DICT_5X5_50,
+	"DICT_5X5_100": cv2.aruco.DICT_5X5_100,
+	"DICT_5X5_250": cv2.aruco.DICT_5X5_250,
+	"DICT_5X5_1000": cv2.aruco.DICT_5X5_1000,
+	"DICT_6X6_50": cv2.aruco.DICT_6X6_50,
+	"DICT_6X6_100": cv2.aruco.DICT_6X6_100,
+	"DICT_6X6_250": cv2.aruco.DICT_6X6_250,
+	"DICT_6X6_1000": cv2.aruco.DICT_6X6_1000,
+	"DICT_7X7_50": cv2.aruco.DICT_7X7_50,
+	"DICT_7X7_100": cv2.aruco.DICT_7X7_100,
+	"DICT_7X7_250": cv2.aruco.DICT_7X7_250,
+	"DICT_7X7_1000": cv2.aruco.DICT_7X7_1000,
+	"DICT_ARUCO_ORIGINAL": cv2.aruco.DICT_ARUCO_ORIGINAL,
+	"DICT_APRILTAG_16h5": cv2.aruco.DICT_APRILTAG_16h5,
+	"DICT_APRILTAG_25h9": cv2.aruco.DICT_APRILTAG_25h9,
+	"DICT_APRILTAG_36h10": cv2.aruco.DICT_APRILTAG_36h10,
+	"DICT_APRILTAG_36h11": cv2.aruco.DICT_APRILTAG_36h11
+}
+
 def read_calibration_file(file_name):
   with open(file_name, "r") as file:
     try:
@@ -42,12 +66,12 @@ def callback(msg):
 
   image = np.array(image.getdata(), dtype=np.uint8).reshape(msg.height, msg.width, -1)
 
-  cv2.imshow("pure image", image)
-  cv2.waitKey(0)
+  # cv2.imshow("pure image", image)
+  # cv2.waitKey(0)
 
   image = cv2.undistort(image, calib_m, dist_coefs, newCameraMatrix=calib_m)
-  cv2.imshow("undistorted image", image)
-  cv2.waitKey(0)
+  # cv2.imshow("undistorted image", image)
+  # cv2.waitKey(0)
 
   (corners, ids, rejected) = cv2.aruco.detectMarkers(image, arucoDict,parameters=arucoParams)
 
@@ -62,8 +86,8 @@ def callback(msg):
       # Draw a square around the markers
       cv2.aruco.drawDetectedMarkers(image, corners) 
 
-      cv2.imshow("marker detected image", image)
-      cv2.waitKey(0)
+      # cv2.imshow("marker detected image", image)
+      # cv2.waitKey(0)
  
       #estimate pose
       rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(corners, 0.02, calib_m, dist_coefs)  
@@ -71,14 +95,13 @@ def callback(msg):
       # Draw Axis
       cv2.aruco.drawAxis(image, calib_m, dist_coefs, rvec, tvec, 0.01)  
 
-      cv2.imshow("pose estimated image", image)
-      cv2.waitKey(0)
-
       print("ROTATION VECTOR",rvec)
       print("TRANLATION VECTOR", tvec)
 
+  cv2.imshow("pose estimated image", image)
+  cv2.waitKey(1)
 
-  cv2.destroyAllWindows()   
+ 
 
   # publish the image to detected_markers topic
   
@@ -89,21 +112,23 @@ def callback(msg):
 
  
 
-
-
-
 rospy.init_node('marker_detector')
 pub = rospy.Publisher('/detected_markers', Image, queue_size=1)
 
-arucoDict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_ARUCO_ORIGINAL)
+# arucoDict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_ARUCO_ORIGINAL)  # for simulation
+
+arucoDict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_100)
 arucoParams = cv2.aruco.DetectorParameters_create() 
 bridge = CvBridge()
 
-proj_m, calib_m, dist_coefs = read_calibration_file("ost.yaml")
+
+proj_m, calib_m, dist_coefs = read_calibration_file("ost_real.yaml")
 
 while not rospy.is_shutdown(): 
-   sub = rospy.Subscriber('/t265/stereo_ir/left/fisheye_image_raw', Image, callback)
+ #  sub = rospy.Subscriber('/t265/stereo_ir/left/fisheye_image_raw', Image, callback)
+   sub = rospy.Subscriber('/camera/image_raw', Image, callback)
    rospy.spin()
 
 
 
+cv2.destroyAllWindows()  
