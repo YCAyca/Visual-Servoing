@@ -10,7 +10,10 @@ import cv2
 from cv_bridge import CvBridge
 import numpy as np
 import yaml
-from std_msgs.msg import UInt8MultiArray
+from rospy_tutorials.msg import Floats
+from rospy.numpy_msg import numpy_msg
+from std_msgs.msg import UInt8
+from vs_project.msg import MarkerPose
 
 ARUCO_DICT = {
 	"DICT_4X4_50": cv2.aruco.DICT_4X4_50,
@@ -86,29 +89,28 @@ def callback(msg):
       # Draw a square around the markers
       # cv2.aruco.drawDetectedMarkers(image, corners) 
       #estimate pose
+      
       rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorner, 0.02, calib_m, dist_coefs)  
 
-      print("ROTATION VECTOR",rvec)
-      print("TRANLATION VECTOR", tvec)
+      print("ROTATION VECTOR",rvec[0][0])
+      print("TRANLATION VECTOR", rvec[0][0])
+
       # Draw Axis
       cv2.aruco.drawAxis(image, calib_m, dist_coefs, rvec, tvec, 0.01)  
 
-     
-
-      # publish the estimated pose with tranlation and rotation vectors
-
-      #pub.publish(rvec)
+      #publish estimated pose 
+    
+      pose = MarkerPose()
+      pose.id = markerID[0]
+      pose.rvec = rvec[0][0]
+      pose.tvec = tvec[0][0]
+      pub.publish(pose)
+      
+           
 
 
   cv2.imshow("pose estimated image", image)
   cv2.waitKey(1)
-
- 
-
-  # publish the image to detected_markers topic
-  
-  # image_message = bridge.cv2_to_imgmsg(image)
-  # pub.publish(image_message)
 
 
 
@@ -117,11 +119,10 @@ arucoParams = cv2.aruco.DetectorParameters_create()
 bridge = CvBridge()
 
 
-proj_m, calib_m, dist_coefs = read_calibration_file("/home/yca/catkin_ws/src/vs_project/ost.yaml")
+proj_m, calib_m, dist_coefs = read_calibration_file("/home/yca/catkin_ws/src/vs_project/ost_simulation.yaml")
 
 rospy.init_node('pose_estimation')
-pub = rospy.Publisher('/estimated_pose', UInt8MultiArray, queue_size=1)
-
+pub = rospy.Publisher('/estimated_pose', MarkerPose, queue_size=1)
 
 while not rospy.is_shutdown(): 
   sub = rospy.Subscriber('/t265/stereo_ir/left/fisheye_image_raw', Image, callback)
