@@ -10,6 +10,7 @@ project(vs_project)
 find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
+  geometry_msgs
   message_generation
 )
 
@@ -50,6 +51,7 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
    FILES
    MarkerPose.msg
+   detectedMarker.msg
  )
 
 ## Generate services in the 'srv' folder
@@ -70,6 +72,7 @@ add_message_files(
 generate_messages(
    DEPENDENCIES
    std_msgs
+   geometry_msgs
 )
 
 ################################################

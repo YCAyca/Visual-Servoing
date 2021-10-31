@@ -1,9 +1,6 @@
 #! /usr/bin/env python
 
 import rospy
-import PIL.Image as PImage
-import io
-import base64
 from sensor_msgs.msg import Image 
 from std_msgs.msg import Int16
 import cv2
@@ -14,6 +11,7 @@ from rospy_tutorials.msg import Floats
 from rospy.numpy_msg import numpy_msg
 from std_msgs.msg import UInt8
 from vs_project.msg import MarkerPose
+from vs_project.msg import detectedMarker
 
 ARUCO_DICT = {
 	"DICT_4X4_50": cv2.aruco.DICT_4X4_50,
@@ -65,35 +63,34 @@ def read_calibration_file(file_name):
 
 
 def callback(msg):    
-  # image = PImage.frombytes("RGB", (msg.height,msg.width), msg.data)
-
-  # image = np.array(image.getdata(), dtype=np.uint8).reshape(msg.height, msg.width, -1)
-
   image = np.frombuffer(msg.data, dtype=np.uint8).reshape(msg.height, msg.width, -1)
   
   newcameramtx, roi = cv2.getOptimalNewCameraMatrix(calib_m, dist_coefs, (3,3), 1, (3,3))
   
 
   image = cv2.undistort(image, calib_m, dist_coefs, newCameraMatrix=newcameramtx)
-  # cv2.imshow("undistorted image", image)
-  # cv2.waitKey(0)
 
   (corners, ids, rejected) = cv2.aruco.detectMarkers(image, arucoDict,parameters=arucoParams)
-
-  print(type(corners))
-  print(corners)
 
   if len(corners) > 0:
     # loop over the detected ArUCo corners
     for (markerCorner, markerID) in zip(corners, ids):
-      # Draw a square around the markers
-      # cv2.aruco.drawDetectedMarkers(image, corners) 
-      #estimate pose
+      
+      #publish corners
+      features = detectedMarker()
+      features.id = markerID[0]
+      features.corner1.x = markerCorner[0][0][0]
+      features.corner1.y = markerCorner[0][0][1]
+      features.corner2.x = markerCorner[0][1][0]
+      features.corner2.y = markerCorner[0][1][1]
+      features.corner3.x = markerCorner[0][2][0]
+      features.corner3.y = markerCorner[0][2][1]
+      features.corner4.x = markerCorner[0][3][0]
+      features.corner4.y = markerCorner[0][3][1]
+
+      pub2.publish(features)
       
       rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorner, 0.02, calib_m, dist_coefs)  
-
-      print("ROTATION VECTOR",rvec[0][0])
-      print("TRANLATION VECTOR", rvec[0][0])
 
       # Draw Axis
       cv2.aruco.drawAxis(image, calib_m, dist_coefs, rvec, tvec, 0.01)  
@@ -113,6 +110,7 @@ def callback(msg):
   cv2.waitKey(1)
 
 
+######
 
 arucoDict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_ARUCO_ORIGINAL)  # for simulation
 arucoParams = cv2.aruco.DetectorParameters_create() 
@@ -123,6 +121,7 @@ proj_m, calib_m, dist_coefs = read_calibration_file("/home/yca/catkin_ws/src/vs_
 
 rospy.init_node('pose_estimation')
 pub = rospy.Publisher('/estimated_pose', MarkerPose, queue_size=1)
+pub2 = rospy.Publisher('/detected_marker', detectedMarker, queue_size=1)
 
 while not rospy.is_shutdown(): 
   sub = rospy.Subscriber('/t265/stereo_ir/left/fisheye_image_raw', Image, callback)
