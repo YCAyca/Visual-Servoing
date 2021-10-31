@@ -29,6 +29,8 @@ def controller(robot, target, alpha):
     pixel_velocity_np = np.array(pixel_velocity).reshape(6,1)
     interaction_matrix_np = np.array(interaction_matrix).reshape(6,6)
 
+    interaction_matrix_np = np.linalg.inv(interaction_matrix_np) #inverse of the interaction matrix
+
     print("pixel velocity",pixel_velocity_np)
     print("interaction matrix",interaction_matrix_np)
 
