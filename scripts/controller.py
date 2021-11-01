@@ -12,7 +12,7 @@ robot_assigned = False
 target_reached = False
 
 
-Z = 1 # dont know what to put now
+Z = -0.001002 # dont know what to put now just putted the robot z pose in gazebo sim
 
 uv_robot = []
 uv_target = []
