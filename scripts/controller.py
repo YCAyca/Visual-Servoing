@@ -19,7 +19,7 @@ uv_target = []
 interaction_matrix = []
 error = []
 
-def controller(robot, target, alpha=0.5):
+def controller(robot, target, alpha=0.7):
     global interaction_matrix
     global error
     global target_reached
@@ -45,11 +45,11 @@ def controller(robot, target, alpha=0.5):
 
     if error_norm < 100:
         robot_vel.linear.x = 0
-        #robot_vel.linear.y = robot_velocity[1][0]
-        #robot_vel.linear.z = robot_velocity[2][0]
+        robot_vel.linear.y = 0
+        robot_vel.linear.z = 0
 
-        #robot_vel.angular.x = robot_velocity[3][0]
-        #robot_vel.angular.y = robot_velocity[4][0]
+        robot_vel.angular.x = 0
+        robot_vel.angular.y = 0
         robot_vel.angular.z = 0
         
         pub.publish(robot_vel)
@@ -62,16 +62,18 @@ def controller(robot, target, alpha=0.5):
     print("interaction matrix",interaction_matrix_np)
 
     
-    robot_velocity = alpha * np.matmul(interaction_matrix_np, error_np)
+    robot_velocity = -alpha * np.matmul(interaction_matrix_np, error_np)
+
+
 
     print("ROBOT VELOCITY", robot_velocity) 
 
     robot_vel.linear.x = robot_velocity[0][0]
-    #robot_vel.linear.y = robot_velocity[1][0]
-    #robot_vel.linear.z = robot_velocity[2][0]
+    robot_vel.linear.y = robot_velocity[1][0]
+    # robot_vel.linear.z = robot_velocity[2][0]
 
-    #robot_vel.angular.x = robot_velocity[3][0]
-    #robot_vel.angular.y = robot_velocity[4][0]
+    # robot_vel.angular.x = robot_velocity[3][0]
+    # robot_vel.angular.y = robot_velocity[4][0]
     robot_vel.angular.z = robot_velocity[5][0]
 
     pub.publish(robot_vel)
@@ -85,7 +87,6 @@ def calculate_interaction_matrix(robot):
   
 
 def callback(msg):   
-    print("hello")
     global target_assigned
     global robot_assigned   
 
@@ -99,6 +100,7 @@ def callback(msg):
       #  uv_robot.append((msg.corner4.x, msg.corner4.y))
     elif msg.id == TARGET_MARKER_ID:  # no need to assign target possition again and again
         #   print("target uv") 
+     #   if not target_assigned:
         uv_target.clear()
         uv_target.append((msg.corner1.x, msg.corner1.y))
         uv_target.append((msg.corner2.x, msg.corner2.y))
@@ -111,7 +113,7 @@ def callback(msg):
     if target_assigned and robot_assigned:
         controller(uv_robot, uv_target)
         robot_assigned = False # we should be sure if the new robot position came before calling controller serially
-        target_assigned = False
+        target_assigned = False # no need if the target doesnt move
         
 
 
