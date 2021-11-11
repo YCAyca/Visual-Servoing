@@ -5,6 +5,8 @@ import numpy as np
 from geometry_msgs.msg import Twist
 import sys
 import math
+from tf.transformations import euler_from_quaternion
+
 
 ROBOT_MARKER_ID = 0
 TARGET_MARKER_ID = 3  
@@ -26,17 +28,31 @@ robot_vel.linear.z = 0
 robot_vel.angular.x = 0
 robot_vel.angular.y = 0
 robot_vel.angular.z = 0
-        
+
+k_p = 0.3
+k_alpha = 0.8
+k_beta = -0.15
+
+def create_matrix(alfa, beta, p): 
+    return [[-math.cos(alfa), 0], [math.sin(alfa)/p, -1], [-math.sin(alfa)/p, 0]]
+
 
 def controller(robot, target):
-    global target_reached
     global robot_vel
 
-    distance = distance_to_target(target,robot)
+    teta = robot[0][0][2]
 
-    print("distance",distance)
+  #  (_, _, teta) = euler_from_quaternion([robot[0][0][0], robot[0][0][1], robot[0][0][2], 0])  
+
+    teta = math.degrees(teta)
+    print(teta)
+                  
+
+    p = math.sqrt((target[0][1][0]-robot[0][1][0])**2 + (target[0][1][1]-robot[0][1][1])**2) 
+
+    print("distance", p)
     
-    if  distance < 0.09:
+    if  p < 0.05:
         robot_vel.linear.x = 0
         robot_vel.angular.z = 0
         
@@ -44,32 +60,30 @@ def controller(robot, target):
         print("robot reached th target ciaou")
         rospy.signal_shutdown("robot reached th target ciaou")
 
-    teta_error = math.degrees(target[0][0][2] - robot[0][0][2]) # z angle
 
-    print("teta error",teta_error)
+    alfa = math.degrees(math.atan((target[0][1][1] - robot[0][1][1]) / (target[0][1][0] - robot[0][1][0]))) - teta
+    beta = -alfa - teta 
 
-    teta_error2 = math.degrees(math.atan((target[0][1][1] - robot[0][1][1]) / (target[0][1][0] - robot[0][1][0])))# target_y - robot_y / target_x - robot_x
+    v = k_p * p
+    w = k_alpha * alfa + k_beta * beta
 
-    print("teta error2",teta_error2)
-
-    if math.fabs(teta_error2) > 10:
-        robot_vel.linear.x = 0
-       
-        speed_w = compute_rotational_speed(distance)
-        if teta_error2 < 0:
-            speed_w *= -1
-        robot_vel.angular.z = speed_w / 5
-    else:
-        speed_f = compute_forward_speed(distance)
-        speed_w = compute_rotational_speed(math.radians(teta_error2))
-
-        if teta_error2 < 0:
-            speed_w *= -1
-
-        robot_vel.linear.x =  speed_f 
-        robot_vel.angular.z = speed_w 
+    robot_vel.linear.x =  v 
+    robot_vel.angular.z = w / 100
             
     pub.publish(robot_vel)    
+
+    # matrix1 = np.array(create_matrix(alfa, beta, p))
+    # matrix2 = np.array([[v], [w]])
+
+    # print("m1",matrix1)
+    # print("m2",matrix2)
+
+    # np.matmul(matrix1, matrix2)
+
+
+
+
+
 
 def callback(msg):   
     global target_assigned
@@ -91,26 +105,15 @@ def callback(msg):
 
     if target_assigned and robot_assigned:
         controller(robot_pose, target_pose)
-        robot_assigned = False # we should be sure if the new robot position came before calling controller serially
-     #   target_assigned = False # no need if the target doesnt move
-        
-
-def distance_to_target(target, robot):
-        return math.sqrt((target[0][1][0]-robot[0][1][0])**2 + (target[0][1][1]-robot[0][1][1])**2)   # (target_x-pos_x)**2 + (target_y-pos_y)**2)        
+        robot_assigned = False 
 
 
-def compute_rotational_speed(distance):
-        return rotational_speed_gain*distance
 
-def compute_forward_speed(distance):
-        return forward_speed_gain*distance
 
-rospy.init_node('controller2')
+rospy.init_node('controller3')
 pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
 rate = rospy.Rate(1)
 
 
 sub = rospy.Subscriber('/estimated_pose', MarkerPose, callback)
 rospy.spin()
-
-  
