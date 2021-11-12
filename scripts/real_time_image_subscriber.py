@@ -1,16 +1,17 @@
 #! /usr/bin/env python
 
 import rospy
-import PIL.Image as PImage
-import io
-import base64
 from sensor_msgs.msg import Image 
 from std_msgs.msg import Int16
 import cv2
 from cv_bridge import CvBridge
 import numpy as np
 import yaml
-from std_msgs.msg import UInt8MultiArray
+from rospy_tutorials.msg import Floats
+from rospy.numpy_msg import numpy_msg
+from std_msgs.msg import UInt8
+from vs_project.msg import MarkerPose
+from vs_project.msg import detectedMarker
 
 ARUCO_DICT = {
 	"DICT_4X4_50": cv2.aruco.DICT_4X4_50,
@@ -62,60 +63,54 @@ def read_calibration_file(file_name):
 
 
 def callback(msg):    
-  image = PImage.frombytes("RGB", (msg.height,msg.width), msg.data)
+  image = np.frombuffer(msg.data, dtype=np.uint8).reshape(msg.height, msg.width, -1)
+  
+  newcameramtx, roi = cv2.getOptimalNewCameraMatrix(calib_m, dist_coefs, (3,3), 1, (3,3))
+  
 
-  image = np.array(image.getdata(), dtype=np.uint8).reshape(msg.height, msg.width, -1)
-
-  # cv2.imshow("pure image", image)
-  # cv2.waitKey(0)
-
-  image = cv2.undistort(image, calib_m, dist_coefs, newCameraMatrix=calib_m)
-  # cv2.imshow("undistorted image", image)
-  # cv2.waitKey(0)
+  image = cv2.undistort(image, calib_m, dist_coefs, newCameraMatrix=newcameramtx)
 
   (corners, ids, rejected) = cv2.aruco.detectMarkers(image, arucoDict,parameters=arucoParams)
 
-  print(type(corners))
-  print(corners)
-
   if len(corners) > 0:
-    # flatten the ArUco IDs list
-    ids = ids.flatten()
     # loop over the detected ArUCo corners
     for (markerCorner, markerID) in zip(corners, ids):
-      # Draw a square around the markers
-      cv2.aruco.drawDetectedMarkers(image, corners) 
+      
+      #publish corners
+      features = detectedMarker()
+      features.id = markerID[0]
+      features.corner1.x = markerCorner[0][0][0]
+      features.corner1.y = markerCorner[0][0][1]
+      features.corner2.x = markerCorner[0][1][0]
+      features.corner2.y = markerCorner[0][1][1]
+      features.corner3.x = markerCorner[0][2][0]
+      features.corner3.y = markerCorner[0][2][1]
+      features.corner4.x = markerCorner[0][3][0]
+      features.corner4.y = markerCorner[0][3][1]
 
-      # cv2.imshow("marker detected image", image)
-      # cv2.waitKey(0)
- 
-      #estimate pose
-      rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(corners, 0.02, calib_m, dist_coefs)  
+      pub2.publish(features)
+      
+      rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorner, 0.02, calib_m, dist_coefs)  
 
       # Draw Axis
       cv2.aruco.drawAxis(image, calib_m, dist_coefs, rvec, tvec, 0.01)  
 
-      print("ROTATION VECTOR",rvec)
-      print("TRANLATION VECTOR", tvec)
+      #publish estimated pose 
+    
+      pose = MarkerPose()
+      pose.id = markerID[0]
+      pose.rvec = rvec[0][0]
+      pose.tvec = tvec[0][0]
+      pub.publish(pose)
+      
+           
+
 
   cv2.imshow("pose estimated image", image)
   cv2.waitKey(1)
 
- 
 
-  # publish the image to detected_markers topic
-  
-  # image_message = bridge.cv2_to_imgmsg(image)
-  # pub.publish(image_message)
-
-  # publish the estimated pose with tranlation and rotation vectors
-
- 
-
-rospy.init_node('marker_detector')
-pub = rospy.Publisher('/detected_markers', Image, queue_size=1)
-
-# arucoDict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_ARUCO_ORIGINAL)  # for simulation
+######
 
 arucoDict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_100)
 arucoParams = cv2.aruco.DetectorParameters_create() 
@@ -124,11 +119,17 @@ bridge = CvBridge()
 
 proj_m, calib_m, dist_coefs = read_calibration_file("ost_real.yaml")
 
+rospy.init_node('pose_estimation')
+pub = rospy.Publisher('/estimated_pose', MarkerPose, queue_size=1)
+pub2 = rospy.Publisher('/detected_marker', detectedMarker, queue_size=1)
+
 while not rospy.is_shutdown(): 
- #  sub = rospy.Subscriber('/t265/stereo_ir/left/fisheye_image_raw', Image, callback)
-   sub = rospy.Subscriber('/camera/image_raw', Image, callback)
-   rospy.spin()
-
-
+  sub = rospy.Subscriber('/camera/image_raw', Image, callback)
+  rospy.spin()
 
 cv2.destroyAllWindows()  
+
+
+
+
+
