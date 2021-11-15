@@ -90,7 +90,7 @@ def callback(msg):
 
       pub2.publish(features)
       
-      rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorner, 0.02, calib_m, dist_coefs)  
+      rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorner, 0.1, calib_m, dist_coefs)  
 
       # Draw Axis
       cv2.aruco.drawAxis(image, calib_m, dist_coefs, rvec, tvec, 0.01)  
