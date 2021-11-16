@@ -99,8 +99,8 @@ def callback(msg):
     
       pose = MarkerPose()
       pose.id = markerID[0]
-      pose.rvec = rvec[0][0]
-      pose.tvec = tvec[0][0]
+      pose.rvec = np.array(rvec[0][0], dtype=np.float32)
+      pose.tvec = np.array(tvec[0][0], dtype=np.float32)
       pub.publish(pose)
       
            
@@ -112,7 +112,7 @@ def callback(msg):
 
 ######
 
-arucoDict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_100)
+arucoDict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_ARUCO_ORIGINAL)
 arucoParams = cv2.aruco.DetectorParameters_create() 
 bridge = CvBridge()
 
