@@ -7,8 +7,8 @@ import time
 from geometry_msgs.msg import Twist  
 import matplotlib.pyplot as plt
 
-robotpath = "/home/yca/catkin_ws/src/vs_project/images/target4.png"
-targetpath = "/home/yca/catkin_ws/src/vs_project/images/robot1.png"
+robotpath = "/home/yca/catkin_ws/src/vs_project/images/robot1.png"
+targetpath = "/home/yca/catkin_ws/src/vs_project/images/target4.png"
 
 def read_calibration_file(file_name):
   with open(file_name, "r") as file:
@@ -93,6 +93,7 @@ if len(corners) > 0:
         euler_degrees = r.as_euler('xyz', degrees=True)
         print(euler_degrees)
 
+        RT = euler_degrees[2]
 
         """ write rvec and tvec to the robot.txt"""
 
@@ -134,6 +135,7 @@ if len(corners) > 0:
         r = R.from_rotvec(rvec[0][0])
         euler_degrees = r.as_euler('xyz', degrees=True)
 
+        TT = euler_degrees[2]
         """ write rvec and tvec to the target.txt"""
 
         with open('targetpos.txt', 'w') as outfile:
@@ -155,36 +157,36 @@ cv2.destroyAllWindows()
 
 """ robot to target pose calculation """
 
-homogenous_robot_inv = np.linalg.inv(homogenous_robot)
+# homogenous_robot_inv = np.linalg.inv(homogenous_robot)
 
-Trobotgoal = np.matmul(homogenous_robot_inv,homogenous_target)
+# Trobotgoal = np.matmul(homogenous_robot_inv,homogenous_target)
 
-deltax =  Trobotgoal[0][3]
-deltay =  Trobotgoal[1][3]
+# deltax =  Trobotgoal[0][3]
+# deltay =  Trobotgoal[1][3]
 
-print("deltax", deltax)
-print("deltay", deltay)
+# print("deltax", deltax)
+# print("deltay", deltay)
 
-rotation_matrix = [[Trobotgoal[0][0], Trobotgoal[0][1], Trobotgoal[0][2]], [Trobotgoal[1][0], Trobotgoal[1][1], Trobotgoal[1][2]], [Trobotgoal[2][0], Trobotgoal[2][1], Trobotgoal[2][2]]]    
+# rotation_matrix = [[Trobotgoal[0][0], Trobotgoal[0][1], Trobotgoal[0][2]], [Trobotgoal[1][0], Trobotgoal[1][1], Trobotgoal[1][2]], [Trobotgoal[2][0], Trobotgoal[2][1], Trobotgoal[2][2]]]    
 
-r = R.from_matrix(rotation_matrix)
+# r = R.from_matrix(rotation_matrix)
 
-euler_degrees = r.as_euler('xyz', degrees=True)
+# euler_degrees = r.as_euler('xyz', degrees=True)
 
-print("THETA ROBOT GOAL", euler_degrees[2])
+# print("THETA ROBOT GOAL", euler_degrees[2])
 
-alfa = np.arctan2(deltay, deltax)
+# alfa = np.arctan2(deltay, deltax)
 
-print("ALFA", np.degrees(alfa))
+# print("ALFA", np.degrees(alfa))
 
 
-with open('robot_to_target.txt', 'w') as outfile:
-    outfile.write("Homogenous Matrix: \n") 
-    outfile.write(str(Trobotgoal))
-    outfile.write("\n")  
-    outfile.write("Theta: \n") 
-    outfile.write(str(euler_degrees[2]))
-    outfile.close()  
+# with open('robot_to_target.txt', 'w') as outfile:
+#     outfile.write("Homogenous Matrix: \n") 
+#     outfile.write(str(Trobotgoal))
+#     outfile.write("\n")  
+#     outfile.write("Theta: \n") 
+#     outfile.write(str(euler_degrees[2]))
+#     outfile.close()  
 
 
 """ move the robot """
@@ -204,12 +206,15 @@ robot_vel.angular.x = 0
 robot_vel.angular.y = 0
 robot_vel.angular.z = 0
 
-robot_x = 0
-robot_y = 0
-robot_teta = 0
+robot_x = homogenous_robot[0][3]
+robot_y = homogenous_robot[1][3]
+robot_teta = math.radians(RT)
 
-target_x = deltax
-target_y = deltay
+target_x = homogenous_target[0][3]
+target_y = homogenous_target[0][3]
+target_teta = math.radians(TT)
+
+alfa = np.arctan2((target_y-robot_y), (target_x-robot_x)) 
 
 k_alfa = 1
 k_rho = 0.3
@@ -238,7 +243,6 @@ while True:
     ## We require this line to let the plot update
     plt.pause(0.001)
 
-
     distance = math.sqrt((target_x-robot_x)**2 + (target_y-robot_y)**2)
 
     if distance < 0.1:
@@ -255,8 +259,9 @@ while True:
     if math.fabs(np.degrees(alfa)) > 5:
         speed_v = 0
         speed_w = k_alfa * alfa 
-        if np.degrees(alfa) < 0:
-            speed_w *= -1
+        # if np.degrees(alfa) < 0:
+        #     speed_w *= -1
+        #     print("speed w", speed_w)
         
         robot_vel.linear.x = speed_v
         robot_vel.angular.z = speed_w
@@ -265,14 +270,13 @@ while True:
         time.sleep(0.001)
         current_time = time.time()
         delta_t = current_time -  t_k
-        robot_teta = robot_teta + (speed_w * delta_t)
-        t_k = current_time = time.time()
-        if np.degrees(alfa) < 0:
-            alfa = np.arctan2((target_y - robot_y), (target_x - robot_x)) + robot_teta
-        else:
-            alfa = np.arctan2((target_y - robot_y), (target_x - robot_x)) - robot_teta    
-        print("alfa",np.degrees(alfa))
+        robot_teta = robot_teta + speed_w * delta_t
 
+        print("ROBOT TETA",robot_teta)
+
+        t_k = current_time = time.time()
+        alfa = np.arctan2((target_y - robot_y), (target_x - robot_x)) - robot_teta    
+        print("alfa",np.degrees(alfa))
     else:
         speed_v = distance * k_rho
         speed_w = 0
