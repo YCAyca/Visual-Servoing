@@ -34,7 +34,8 @@ k_alpha = 0.8
 k_beta = -0.15
 
 v = 0
-w= 0
+w = 0
+
 
 def get_target_pos(file_name):
   with open(file_name, "r") as file:
@@ -49,13 +50,14 @@ def get_target_pos(file_name):
     return target_matrix, target_teta
 
 
-
 def rot_matrix(rvec):
     Rmat, _ = cv2.Rodrigues(rvec)
     return Rmat
 
+
 def homogenous_matrix(rotmat, tvec):
     return [[rotmat[0][0], rotmat[0][1], rotmat[0][2], tvec[0]], [rotmat[1][0], rotmat[1][1], rotmat[1][2], tvec[1]],  [rotmat[2][0], rotmat[2][1], rotmat[2][2], tvec[2]], [0, 0, 0, 1]]
+
 
 def controller(Tcurcam, robot_teta, Tgoalcam, target_teta):
     global robot_vel
@@ -155,55 +157,15 @@ def controller(Tcurcam, robot_teta, Tgoalcam, target_teta):
 
 
 def callback(msg):   
-    global robot_assigned
-    global target_assigned
-    robot_teta = 0
-    target_teta = 0
+    Rmat_robot = rot_matrix([3.16506197, -0.07426953, -0.06763119])
+    homogenous_robot = homogenous_matrix(Rmat_robot, [-0.69233909,  0.0326587,   1.06192585])
 
-    if not target_assigned or not robot_assigned:
-      if msg.id == ROBOT_MARKER_ID:
-          if not robot_assigned:
-            global homogenous_robot
-            robot_assigned = True
-            robot_teta = msg.rvec[2]
-            Rmat_robot = rot_matrix(msg.rvec)
-            homogenous_robot = homogenous_matrix(Rmat_robot, msg.tvec)
-            
-            
-            print("TETA ROBOT", robot_teta)
-
-            with open('robotpos.txt', 'w') as outfile:
-              outfile.write(str(homogenous_robot))  
-              outfile.write("\n")  
-              outfile.write(str(robot_teta))
-              outfile.close()  
-
-
-      elif msg.id == TARGET_MARKER_ID:  # no need to assign target possition again and again
-          if not target_assigned:
-            global homogenous_target
-            target_assigned = True
-            Rmat_target = rot_matrix(msg.rvec)
-            homogenous_target = homogenous_matrix(Rmat_target, msg.tvec)
-          
-            target_teta = msg.rvec[2]
-            print("TETA GOAL", target_teta)
-
-            with open('targetpos.txt', 'w') as outfile:
-              outfile.write(str(homogenous_target))
-              outfile.write("\n")   
-              outfile.write(str(target_teta))
-              outfile.close()  
-      else:
-          raise ValueError("check your marker IDs")    
-
-    if target_assigned and robot_assigned:
-        homogenous_robot = [[0.7684744526088939, -0.08277053522009971, 0.6345045738108106, -0.38810721039772034], [-0.03708929031897902, -0.99569323070846, -0.08496690452749128, 0.045339494943618774], [0.6388046651607162, 0.04176157109984682, -0.7682347108457008, 1.0854337215423584], [0, 0, 0, 1]]
-        robot_teta = 1.0419361591339111
-        homogenous_target = [[-0.6810352905056707, -0.7314747301382367, -0.0336994399812591, -0.5985824465751648], [-0.731997741627944, 0.6788694443052739, 0.05758110662568257, -0.3179003894329071], [-0.0192416043366059, 0.06388267963886783, -0.9977718997369646, 1.066756010055542], [0, 0, 0, 1]]
-        target_teta = -0.10386244207620621
-        controller(homogenous_robot, robot_teta, homogenous_target, target_teta)
-        robot_assigned = False 
+    Rmat_target =  rot_matrix([0.01036359, 3.13365486, 0.05132683])       
+    homogenous_target = homogenous_matrix(Rmat_target, [-0.44558346, -0.82360428,  1.04953636])
+        
+       
+ #   controller(homogenous_robot, robot_teta, homogenous_target, target_teta)
+  
 
 
 
