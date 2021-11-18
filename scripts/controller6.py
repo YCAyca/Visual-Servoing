@@ -7,7 +7,7 @@ import time
 from geometry_msgs.msg import Twist  
 import matplotlib.pyplot as plt
 
-robotpath = "/home/yca/catkin_ws/src/vs_project/images/target4.png"
+robotpath = "/home/yca/catkin_ws/src/vs_project/images/target7.png"
 targetpath = "/home/yca/catkin_ws/src/vs_project/images/robot1.png"
 
 def read_calibration_file(file_name):
@@ -255,9 +255,7 @@ while True:
     if math.fabs(np.degrees(alfa)) > 5:
         speed_v = 0
         speed_w = k_alfa * alfa 
-        if np.degrees(alfa) < 0:
-            speed_w *= -1
-        
+    
         robot_vel.linear.x = speed_v
         robot_vel.angular.z = speed_w
     
@@ -267,10 +265,8 @@ while True:
         delta_t = current_time -  t_k
         robot_teta = robot_teta + (speed_w * delta_t)
         t_k = current_time = time.time()
-        if np.degrees(alfa) < 0:
-            alfa = np.arctan2((target_y - robot_y), (target_x - robot_x)) + robot_teta
-        else:
-            alfa = np.arctan2((target_y - robot_y), (target_x - robot_x)) - robot_teta    
+        alfa = np.arctan2((target_y - robot_y), (target_x - robot_x)) - robot_teta
+           
         print("alfa",np.degrees(alfa))
 
     else:
