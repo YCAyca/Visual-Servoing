@@ -7,8 +7,8 @@ import time
 from geometry_msgs.msg import Twist  
 import matplotlib.pyplot as plt
 
-robotpath = "/home/yca/catkin_ws/src/vs_project/images/robot1.png"
-targetpath = "/home/yca/catkin_ws/src/vs_project/images/target4.png"
+robotpath = "/home/yca/catkin_ws/src/vs_project/images/ex1_robot.png"
+targetpath = "/home/yca/catkin_ws/src/vs_project/images/ex1_target.png"
 
 def read_calibration_file(file_name):
   with open(file_name, "r") as file:
@@ -76,7 +76,7 @@ robotimg = cv2.undistort(robotimg, calib_m, dist_coefs, newCameraMatrix=newcamer
 
 if len(corners) > 0:
     for (markerCorner, markerID) in zip(corners, ids):
-        rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorner, 0.1, calib_m, dist_coefs)  
+        rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorner, 0.15, calib_m, dist_coefs)  
 
         # Draw Axis
         cv2.aruco.drawAxis(robotimg, calib_m, dist_coefs, rvec, tvec, 0.1)  
@@ -193,8 +193,8 @@ cv2.destroyAllWindows()
 
 import rospy
 
-#rospy.init_node('controller6')
-#pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
+rospy.init_node('controller6')
+pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
 
 robot_vel = Twist()
 
@@ -251,9 +251,9 @@ while True:
         robot_vel.angular.z = 0
         plt.ioff()
         plt.close()
-    #    pub.publish(robot_vel)
+        pub.publish(robot_vel)
     
-     #   rospy.signal_shutdown("robot reached th target ciaou")
+        rospy.signal_shutdown("robot reached th target ciaou")
         break
   
     if math.fabs(np.degrees(alfa)) > 5:
@@ -266,7 +266,7 @@ while True:
         robot_vel.linear.x = speed_v
         robot_vel.angular.z = speed_w
     
-     #   pub.publish(robot_vel)
+        pub.publish(robot_vel)
         time.sleep(0.001)
         current_time = time.time()
         delta_t = current_time -  t_k
@@ -284,7 +284,7 @@ while True:
         robot_vel.linear.x = speed_v
         robot_vel.angular.z = speed_w
     
-       # pub.publish(robot_vel)
+        pub.publish(robot_vel)
         time.sleep(0.001)
         current_time = time.time()
         delta_t = current_time -  t_k
