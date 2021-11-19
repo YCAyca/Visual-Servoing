@@ -67,7 +67,6 @@ def callback(msg):
   
   newcameramtx, roi = cv2.getOptimalNewCameraMatrix(calib_m, dist_coefs, (3,3), 1, (3,3))
   
-
   image = cv2.undistort(image, calib_m, dist_coefs, newCameraMatrix=newcameramtx)
 
   (corners, ids, rejected) = cv2.aruco.detectMarkers(image, arucoDict,parameters=arucoParams)
@@ -75,25 +74,10 @@ def callback(msg):
   if len(corners) > 0:
     # loop over the detected ArUCo corners
     for (markerCorner, markerID) in zip(corners, ids):
-      
-      #publish corners
-      features = detectedMarker()
-      features.id = markerID[0]
-      features.corner1.x = markerCorner[0][0][0]
-      features.corner1.y = markerCorner[0][0][1]
-      features.corner2.x = markerCorner[0][1][0]
-      features.corner2.y = markerCorner[0][1][1]
-      features.corner3.x = markerCorner[0][2][0]
-      features.corner3.y = markerCorner[0][2][1]
-      features.corner4.x = markerCorner[0][3][0]
-      features.corner4.y = markerCorner[0][3][1]
-
-      pub2.publish(features)
-      
-      rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorner, 0.1, calib_m, dist_coefs)  
+      rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorner, 0.15, calib_m, dist_coefs)  
 
       # Draw Axis
-      cv2.aruco.drawAxis(image, calib_m, dist_coefs, rvec, tvec, 0.01)  
+      cv2.aruco.drawAxis(image, calib_m, dist_coefs, rvec, tvec, 0.1)  
 
       #publish estimated pose 
     
@@ -103,16 +87,14 @@ def callback(msg):
       pose.tvec = tvec[0][0]
       pub.publish(pose)
       
-           
-
-
+          
   cv2.imshow("pose estimated image", image)
   cv2.waitKey(1)
 
 
 ######
 
-arucoDict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_100)
+arucoDict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_ARUCO_ORIGINAL)
 arucoParams = cv2.aruco.DetectorParameters_create() 
 bridge = CvBridge()
 

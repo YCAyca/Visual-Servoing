@@ -15,10 +15,6 @@ target_assigned = False
 robot_assigned = False
 
 robot_pose = []
-target_pose = []
-
-forward_speed_gain = 1
-rotational_speed_gain = 1
 
 robot_vel = Twist()
 
@@ -31,45 +27,26 @@ robot_vel.angular.y = 0
 robot_vel.angular.z = 0
 
 k_p = 0.3
-k_alpha = 0.8
-k_beta = -0.15
+k_alpha = 1.8
 
 def rot_matrix(rvec):
     Rmat, _ = cv2.Rodrigues(rvec)
-  #  print(Rmat)
     return Rmat
 
 def homogenous_matrix(rotmat, tvec):
     return [[rotmat[0][0], rotmat[0][1], rotmat[0][2], tvec[0]], [rotmat[1][0], rotmat[1][1], rotmat[1][2], tvec[1]],  [rotmat[2][0], rotmat[2][1], rotmat[2][2], tvec[2]], [0, 0, 0, 1]]
 
-def controller(robot, target):
+def controller(homogenous_robot,homogenous_target):
     global robot_vel
+     
+    print("\nHOMO ROBO \n",homogenous_robot)
+    print("\nHOMO TARGET \n" , homogenous_target)
+   
+    homogenous_robot_inv = np.linalg.inv(homogenous_robot)
 
-    Rmat_robot = rot_matrix(robot[0][0])
-    Rmat_target = rot_matrix(target[0][0])
+    Tcurgoal = np.dot(homogenous_robot_inv, homogenous_target)
 
-  #  print("ROTMAT",Rmat_robot)
-  #  print("TVEC",robot[0][1])
-
-    homogenous_robot = homogenous_matrix(Rmat_robot, robot[0][1])
-    homogenous_target = homogenous_matrix(Rmat_target, target[0][1])
-        
- #   print("HOMO ROBO",homogenous_robot)
- #   print("HOMO TARGET", homogenous_target)
-    
-    Tcurcam = homogenous_robot
-    Tgoalcam = homogenous_target
-    Tgoalcam_inv = np.linalg.inv(Tgoalcam)
-
-  #  print( "T CURCAM",Tcurcam)
-  #  print( "Tgoalcam",Tgoalcam)
-  #  print( "Tgoalcam_inv",Tgoalcam_inv)
-
-    Tcurgoal =  Tcurcam * Tgoalcam_inv 
-
-    Tcurgoal = np.matmul(Tcurcam, Tgoalcam_inv)
-
-    print("T CUR GOAL", Tcurgoal)
+    print("\nT CUR GOAL\n", Tcurgoal)
 
     deltax =  Tcurgoal[0][3]
     deltay =  Tcurgoal[1][3]
@@ -79,25 +56,18 @@ def controller(robot, target):
     
     rotation_matrix = [[Tcurgoal[0][0], Tcurgoal[0][1], Tcurgoal[0][2]], [Tcurgoal[1][0], Tcurgoal[1][1], Tcurgoal[1][2]], [Tcurgoal[2][0], Tcurgoal[2][1], Tcurgoal[2][2]]]    
 
-  #  print("rotation matrix", rotation_matrix)
-
     r = R.from_matrix(rotation_matrix)
-
-    rvec = r.as_rotvec()
-
-   # print("RVEC",rvec)
-
-    teta = rvec[2]
-
-    print("TETA", teta)
-
-   # teta2 = np.arctan2(deltay, deltax)
+    euler_degrees = r.as_euler('xyz', degrees=True)
+    print("THETA ROBOT GOAL", euler_degrees[2])
+    alfa = np.arctan2(deltay, deltax)
+    
+    print("ALFA", np.degrees(alfa))
 
     p = math.sqrt(deltax**2 + deltay**2) 
 
     print("distance", p)
 
-    
+  
     if  p < 0.05:
         robot_vel.linear.x = 0
         robot_vel.angular.z = 0
@@ -105,42 +75,52 @@ def controller(robot, target):
         pub.publish(robot_vel)
         print("robot reached th target ciaou")
         rospy.signal_shutdown("robot reached th target ciaou")
-
-   
-
-    alfa = math.atan2(deltay,deltax) - teta  # ALFA IS OUR "TETA ERROR" MALAKA
-    if math.degrees(alfa) > 10:
+        
+    if np.fabs(math.degrees(alfa)) > 5:
       v = 0
+      w = k_alpha * alfa
     else:
       v = k_p * p
+      w = 0
 
-    w = k_alpha * alfa
+    if v > 0.22:
+        v = 0.22
+    elif v < -0.22:
+        v = -0.22   
+
+    if w > 2.84:
+        w = 2.84
+    elif w < -2.84:
+        w = -2.84 
+
     robot_vel.angular.z = w  
-    robot_vel.linear.x = v
+    robot_vel.linear.x = v  
 
+    pub.publish(robot_vel)  
 
-    print("alfa", math.degrees(alfa))
-
-    pub.publish(robot_vel)    
-
+def normalize(angle):
+    return np.arctan2(np.sin(angle),np.cos(angle))
 
 def callback(msg):   
     global target_assigned
     global robot_assigned   
+    global homogenous_robot
+    global homogenous_target
 
     if msg.id == ROBOT_MARKER_ID:
-        robot_pose.clear()
-        robot_pose.append((msg.rvec, msg.tvec))
+        Rmat_robot = rot_matrix(msg.rvec)
+        homogenous_robot = homogenous_matrix(Rmat_robot, msg.tvec)   
         robot_assigned = True
     elif msg.id == TARGET_MARKER_ID:  # no need to assign target possition again and again
-        target_pose.clear()
-        target_pose.append((msg.rvec, msg.tvec))
-        target_assigned = True
+        if target_assigned == False:
+          target_assigned = True
+          Rmat_target = rot_matrix(msg.rvec)
+          homogenous_target = homogenous_matrix(Rmat_target, msg.tvec)        
     else:
         raise ValueError("check your marker IDs")    
 
     if target_assigned and robot_assigned:
-        controller(robot_pose, target_pose)
+        controller(homogenous_robot,homogenous_target)
         robot_assigned = False 
 
 
