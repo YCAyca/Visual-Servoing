@@ -7,8 +7,8 @@ import time
 from geometry_msgs.msg import Twist  
 import matplotlib.pyplot as plt
 
-robotpath = "/home/yca/catkin_ws/src/vs_project/images/target7.png"
-targetpath = "/home/yca/catkin_ws/src/vs_project/images/robot1.png"
+robotpath = "/home/yca/catkin_ws/src/vs_project/images/ex1_robot.png"
+targetpath = "/home/yca/catkin_ws/src/vs_project/images/ex1_target.png"
 
 def read_calibration_file(file_name):
   with open(file_name, "r") as file:
@@ -76,18 +76,18 @@ robotimg = cv2.undistort(robotimg, calib_m, dist_coefs, newCameraMatrix=newcamer
 
 if len(corners) > 0:
     for (markerCorner, markerID) in zip(corners, ids):
-        rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorner, 0.1, calib_m, dist_coefs)  
+        rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorner, 0.15, calib_m, dist_coefs)  
 
         # Draw Axis
         cv2.aruco.drawAxis(robotimg, calib_m, dist_coefs, rvec, tvec, 0.1)  
-        cv2.imshow("robot estimated pose", robotimg)
+        cv2.imshow("\nrobot estimated pose\n", robotimg)
         cv2.waitKey(0)
 
         Rmat_robot = rot_matrix(rvec[0][0])
         global homogenous_robot
         homogenous_robot = homogenous_matrix(Rmat_robot, tvec[0][0])
 
-        print("homogenous robot", np.array(homogenous_robot))
+        print("\nhomogenous robot\n", tvec[0][0])
 
         r = R.from_rotvec(rvec[0][0])
         euler_degrees = r.as_euler('xyz', degrees=True)
@@ -118,7 +118,7 @@ targetimg = cv2.undistort(targetimg, calib_m, dist_coefs, newCameraMatrix=newcam
 
 if len(corners) > 0:
     for (markerCorner, markerID) in zip(corners, ids):
-        rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorner, 0.1, calib_m, dist_coefs)  
+        rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorner, 0.15, calib_m, dist_coefs)  
 
         # Draw Axis
         cv2.aruco.drawAxis(targetimg, calib_m, dist_coefs, rvec, tvec, 0.1)  
@@ -129,7 +129,7 @@ if len(corners) > 0:
         global homogenous_target
         homogenous_target = homogenous_matrix(Rmat_target, tvec[0][0])
 
-        print("homogenous target", np.array(homogenous_target))
+        print("\nhomogenous target\n", np.array(homogenous_target))
 
         r = R.from_rotvec(rvec[0][0])
         euler_degrees = r.as_euler('xyz', degrees=True)
@@ -191,8 +191,8 @@ with open('robot_to_target.txt', 'w') as outfile:
 
 import rospy
 
-#rospy.init_node('controller6')
-#pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
+rospy.init_node('controller6')
+pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
 
 robot_vel = Twist()
 
@@ -241,15 +241,16 @@ while True:
 
     distance = math.sqrt((target_x-robot_x)**2 + (target_y-robot_y)**2)
 
+    print("DISTANCE", distance)
     if distance < 0.1:
         print("Robot reached the target!")
         robot_vel.linear.x = 0
         robot_vel.angular.z = 0
         plt.ioff()
         plt.close()
-    #    pub.publish(robot_vel)
+        pub.publish(robot_vel)
     
-     #   rospy.signal_shutdown("robot reached th target ciaou")
+        rospy.signal_shutdown("robot reached th target ciaou")
         break
   
     if math.fabs(np.degrees(alfa)) > 5:
@@ -259,7 +260,7 @@ while True:
         robot_vel.linear.x = speed_v
         robot_vel.angular.z = speed_w
     
-     #   pub.publish(robot_vel)
+        pub.publish(robot_vel)
         time.sleep(0.001)
         current_time = time.time()
         delta_t = current_time -  t_k
@@ -276,7 +277,7 @@ while True:
         robot_vel.linear.x = speed_v
         robot_vel.angular.z = speed_w
     
-       # pub.publish(robot_vel)
+        pub.publish(robot_vel)
         time.sleep(0.001)
         current_time = time.time()
         delta_t = current_time -  t_k
