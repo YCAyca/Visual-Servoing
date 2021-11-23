@@ -94,8 +94,8 @@ for i in range(maze_h):
 print("maze inversed",np.array(maze))                
 
 
-start = (1, 9) # robot pos
-end = (7, 0) # target pos
+start = (1, 9) # robot pos TO DO : update with real robot pos (not pose but the pixel coordinates as the center of 4 detected corner of robot marker than /step_size for x and y)
+end = (7, 0) # target pos TO DO : update with real robot pos (not pose but the pixel coordinates as the center of 4 detected corner of robot marker than /step_size for x and y)
 
 maze = np.array(maze, dtype='f')
 
@@ -117,4 +117,30 @@ for i,k in path:
 cv2.imshow("calculated path", np.array(path_draw, dtype='f'))
 cv2.waitKey(0)
 
+path_real = list()
+
+for i,k in path:
+    path_real.append(((i+1)*50,k*50))
+
+print(path_real)
+
+
+for index in path_real:
+    cv2.circle(grayscale, index, radius=1, color=(255,0, 0), thickness=10)
+
+cv2.imshow("real path grayscale", grayscale)
+cv2.waitKey(0)  
+
+for index in path_real:
+    cv2.circle(env, index, radius=1, color=(255,0, 0), thickness=10)
+
+cv2.imshow("real path orj image", env)
+cv2.waitKey(0)      
+
 cv2.destroyAllWindows()    
+
+# TODO : convert these waypoints to the camera frame poses, determine each way point as target point, go to the target points 1 by 1 
+
+
+
+
