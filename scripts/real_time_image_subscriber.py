@@ -14,23 +14,29 @@ from vs_project.msg import MarkerPose
 from vs_project.msg import detectedMarker
 import utils
 
+utils.init()
 
+env_initialized = False
 
-def callback(msg):    
+def callback(msg):   
+  global env_initialized 
   image = np.frombuffer(msg.data, dtype=np.uint8).reshape(msg.height, msg.width, -1)
   
   newcameramtx, roi = cv2.getOptimalNewCameraMatrix(calib_m, dist_coefs, (3,3), 1, (3,3))
   
   image = cv2.undistort(image, calib_m, dist_coefs, newCameraMatrix=newcameramtx)
 
+  if not env_initialized:
+    cv2.imwrite(utils.ENV_IMAGE_NAME, cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    env_initialized = True
+
   (corners, ids, rejected) = cv2.aruco.detectMarkers(image, arucoDict,parameters=arucoParams)
 
   if len(corners) > 0:
     # loop over the detected ArUCo corners
     for (markerCorner, markerID) in zip(corners, ids):
-      print("MARKERCORNER", markerCorner)
       rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorner, 0.15, calib_m, dist_coefs)  
-
+     # print("MARKER ID", markerID)
       # Draw Axis
       cv2.aruco.drawAxis(image, calib_m, dist_coefs, rvec, tvec, 0.1)  
 
@@ -58,7 +64,6 @@ proj_m, calib_m, dist_coefs = utils.read_calibration_file("ost_real.yaml")
 
 rospy.init_node('pose_estimation')
 pub = rospy.Publisher('/estimated_pose', MarkerPose, queue_size=1)
-pub2 = rospy.Publisher('/detected_marker', detectedMarker, queue_size=1)
 
 while not rospy.is_shutdown(): 
   sub = rospy.Subscriber('/camera/image_raw', Image, callback)

@@ -2,6 +2,15 @@ import yaml
 import cv2
 import numpy as np
 
+
+def init():
+	global target_matrices
+	global ENV_IMAGE_NAME
+	global MARKER_IMAGE_NAME
+
+	ENV_IMAGE_NAME = "/home/yca/catkin_ws/src/vs_project/env.png"
+	MARKER_IMAGE_NAME ="/home/yca/catkin_ws/src/vs_project/marker.png"
+
 ARUCO_DICT = {
 	"DICT_4X4_50": cv2.aruco.DICT_4X4_50,
 	"DICT_4X4_100": cv2.aruco.DICT_4X4_100,
@@ -48,3 +57,11 @@ def read_calibration_file(file_name):
     print("P",projection_matrix)
 
     return projection_matrix,  camera_matrix, distortion_coefs
+
+
+def rot_matrix(rvec):
+    Rmat, _ = cv2.Rodrigues(rvec)
+    return Rmat
+
+def homogenous_matrix(rotmat, tvec):
+    return [[rotmat[0][0], rotmat[0][1], rotmat[0][2], tvec[0]], [rotmat[1][0], rotmat[1][1], rotmat[1][2], tvec[1]],  [rotmat[2][0], rotmat[2][1], rotmat[2][2], tvec[2]], [0, 0, 0, 1]]
