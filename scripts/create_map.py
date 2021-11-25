@@ -3,8 +3,58 @@ import numpy as np
 from PIL import Image, ImageDraw
 import math
 import astar
+import utils
+from PIL import Image, ImageDraw, ImageFilter
+from vs_project.msg import MarkerPose
 
-env = cv2.imread("/home/yca/catkin_ws/src/vs_project/env.jpg")
+#import rhinoscriptsyntax as rs
+
+ROBOT_MARKER_ID = 0
+TARGET_MARKER_ID = 1 
+
+""" detect robot, target and obstacles pixelwise """
+
+proj_m, calib_m, dist_coefs = utils.read_calibration_file("ost_real.yaml")
+
+arucoDict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_ARUCO_ORIGINAL)
+arucoParams = cv2.aruco.DetectorParameters_create() 
+
+newcameramtx, roi = cv2.getOptimalNewCameraMatrix(calib_m, dist_coefs, (3,3), 1, (3,3))
+  
+env = cv2.imread("/home/yca/catkin_ws/src/vs_project/obs4.png")
+
+env = cv2.undistort(env, calib_m, dist_coefs, newCameraMatrix=newcameramtx)
+
+(corners, ids, rejected) = cv2.aruco.detectMarkers(env, arucoDict,parameters=arucoParams)
+
+if len(corners) > 0:
+    # loop over the detected ArUCo corners
+	for (markerCorner, markerID) in zip(corners, ids):
+         # extract the marker corners (which are always returned in
+         # top-left, top-right, bottom-right, and bottom-left order)
+         corners = markerCorner.reshape((4, 2)) 
+         (topLeft, topRight, bottomRight, bottomLeft) = corners
+         # convert each of the (x, y)-coordinate pairs to integers
+         topRight = (int(topRight[0]), int(topRight[1]))
+         bottomRight = (int(bottomRight[0]), int(bottomRight[1]))
+         bottomLeft = (int(bottomLeft[0]), int(bottomLeft[1]))
+         topLeft = (int(topLeft[0]), int(topLeft[1]))
+
+         cX = int((topLeft[0] + bottomRight[0]) / 2.0)
+         cY = int((topLeft[1] + bottomRight[1]) / 2.0)
+         cv2.circle(env, (cX, cY), 4, (0, 0, 255), -1)
+         # draw the ArUco marker ID on the image
+        
+         if markerID == ROBOT_MARKER_ID:
+            cv2.putText(env,  "R", (topLeft[0], topLeft[1] - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            global robot_indexes
+            robot_indexes = (cX,cY)
+
+         elif markerID == TARGET_MARKER_ID:
+            cv2.putText(env, "T", (topLeft[0], topLeft[1] - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2) 
+            global target_indexes
+            target_indexes = (cX,cY)  
+
 
 h,w,channel = env.shape
 
@@ -13,10 +63,11 @@ print(h,w)
 cv2.imshow("initial env", env)
 cv2.waitKey(0)
 
-# find the colors within the specified boundaries and applY  the mask
 
-lower = np.array([0,0,245]) # b,g,r values
-upper = np.array([20,20,255]) # b,g,r values
+""" create the grid map having robot target and obstacles """
+
+lower = np.array([0,0,255]) # b,g,r values
+upper = np.array([150,150,255]) # b,g,r values
 
 mask = cv2.inRange(env, lower, upper)
 output = cv2.bitwise_and(env, env, mask = mask)
@@ -62,6 +113,11 @@ maze = [[0 for x in range(int(w/step_size)+1)] for y in range(int(h/step_size)+1
 maze_h = len(maze)
 maze_w = len(maze[0])
 
+#cv2.imshow("binary image", im_bw)
+#cv2.waitKey(0)
+
+""" create the maze to apply A start algorithm on it """
+
 print("width of maze", maze_w)
 print("height of maze", maze_h)
 
@@ -91,11 +147,14 @@ for i in range(maze_h):
         else:
             maze[i][k] = 0
 
-print("maze inversed",np.array(maze))                
+#print("maze inversed",np.array(maze))                
 
 
-start = (1, 9) # robot pos TO DO : update with real robot pos (not pose but the pixel coordinates as the center of 4 detected corner of robot marker than /step_size for x and y)
-end = (7, 0) # target pos TO DO : update with real robot pos (not pose but the pixel coordinates as the center of 4 detected corner of robot marker than /step_size for x and y)
+print("robot indexes", robot_indexes)
+print("target indexes", target_indexes)
+
+start = (int(robot_indexes[0]/step_size), int(robot_indexes[1]/step_size)) 
+end = (int(target_indexes[0]/step_size), int(target_indexes[1]/step_size)) 
 
 maze = np.array(maze, dtype='f')
 
@@ -103,8 +162,10 @@ maze = cv2.circle(maze, start, radius=0, color=(255,0, 0), thickness=-1)
 
 maze = cv2.circle(maze, end, radius=0, color=(255,0, 0), thickness=-1)
 
-cv2.imshow("robot and target pos", maze)
+cv2.imshow("maze with robot and target pos", maze)
 cv2.waitKey(0)
+
+""" apply A start algorithm """
 
 path = astar.astar(maze, start, end)
 print(path)
@@ -113,6 +174,8 @@ path_draw = [[0 for x in range(maze_w)] for y in range(maze_h)]
 
 for i,k in path:
     path_draw[k][i] = 255
+
+""" visualize the calculated path """
 
 cv2.imshow("calculated path", np.array(path_draw, dtype='f'))
 cv2.waitKey(0)
@@ -137,10 +200,31 @@ for index in path_real:
 cv2.imshow("real path orj image", env)
 cv2.waitKey(0)      
 
-cv2.destroyAllWindows()    
+  
 
-# TODO : convert these waypoints to the camera frame poses, determine each way point as target point, go to the target points 1 by 1 
+""" Convert the calculated path - waypoints to the real time target points """
+marker = Image.open("/home/yca/catkin_ws/src/vs_project/marker.jpg")
+env2 = Image.open("/home/yca/catkin_ws/src/vs_project/obs4.png")
 
+for waypoint in path_real:
+    env2.paste(marker, (waypoint[0]+50,waypoint[1]+50))
+ 
 
+env2 = np.array(env2)
 
+cv2.imshow("way points as markers", env2)
+cv2.waitKey(0) 
 
+(corners, ids, rejected) = cv2.aruco.detectMarkers(env2, arucoDict,parameters=arucoParams)
+
+if len(corners) > 0:
+    # loop over the detected ArUCo corners
+    for (markerCorner, markerID) in zip(corners, ids):
+      rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorner, 0.15, calib_m, dist_coefs)  
+
+      # Draw Axis
+      cv2.aruco.drawAxis(env2, calib_m, dist_coefs, rvec, tvec, 0.1)        
+          
+cv2.imshow("pose estimated markers", env2)
+cv2.waitKey(0) 
+cv2.destroyAllWindows() 

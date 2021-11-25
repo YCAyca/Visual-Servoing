@@ -28,6 +28,7 @@ def callback(msg):
   if len(corners) > 0:
     # loop over the detected ArUCo corners
     for (markerCorner, markerID) in zip(corners, ids):
+      print("MARKERCORNER", markerCorner)
       rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorner, 0.15, calib_m, dist_coefs)  
 
       # Draw Axis
