@@ -7,13 +7,10 @@ import utils
 from PIL import Image, ImageDraw, ImageFilter
 from vs_project.msg import MarkerPose
 
-#import rhinoscriptsyntax as rs
-
 ROBOT_MARKER_ID = 0
 TARGET_MARKER_ID = 1 
 
 def map():
-    cv2.destroyAllWindows() 
 
     target_matrices = []
     utils.init()
@@ -112,9 +109,6 @@ def map():
     maze_h = len(maze)
     maze_w = len(maze[0])
 
-    #cv2.imshow("binary image", im_bw)
-    #cv2.waitKey(0)
-
     """ create the maze to apply A start algorithm on it """
 
     print("width of maze", maze_w)
@@ -131,10 +125,6 @@ def map():
             else:
                 maze[int(k/step_size)][int(i/step_size)] = 1    
             window_area.clear()    
-
-            
-
-    #maze = np.array(maze, dtype='f')
 
     print("maze", np.array(maze))
 
@@ -164,9 +154,6 @@ def map():
 
     maze = cv2.circle(maze, end, radius=0, color=(255,0, 0), thickness=-1)
 
-    # cv2.imshow("maze with robot and target pos", maze)
-    # cv2.waitKey(0)
-
     """ apply A start algorithm """
 
     path = astar.astar(maze_t, start, end)
@@ -179,9 +166,6 @@ def map():
 
     """ visualize the calculated path """
 
-    # cv2.imshow("calculated path", np.array(path_draw, dtype='f'))
-    # cv2.waitKey(0)
-
     path_real = list()
 
     for i,k in path:
@@ -193,16 +177,11 @@ def map():
     for index in path_real:
         cv2.circle(grayscale, index, radius=1, color=(255,0, 0), thickness=10)
 
-    # cv2.imshow("real path grayscale", grayscale)
-    # cv2.waitKey(0)  
-
     for index in path_real:
         cv2.circle(env, index, radius=1, color=(255,0, 0), thickness=10)
 
     cv2.imshow("real path orj image", env)
     cv2.waitKey(0)      
-
-    
 
     """ Convert the calculated path - waypoints to the real time target points """
 
@@ -232,6 +211,6 @@ def map():
             
     cv2.imshow("pose estimated markers", env2)
     cv2.waitKey(0) 
-  #  cv2.destroyAllWindows() 
+    cv2.destroyAllWindows() 
 
     return target_matrices
