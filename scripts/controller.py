@@ -3,126 +3,205 @@ from vs_project.msg import MarkerPose
 from vs_project.msg import detectedMarker
 import numpy as np
 from geometry_msgs.msg import Twist
-import sys
+import math
+from tf.transformations import euler_from_quaternion
+from scipy.spatial.transform import Rotation as R
+import utils
+import create_map
 
 ROBOT_MARKER_ID = 0
-TARGET_MARKER_ID = 3  
+TARGET_MARKER_ID = 1  
+
 target_assigned = False
 robot_assigned = False
 target_reached = False
+parking_done = False
+inital_orientation = False
 
+robot_pose = []
 
-Z = -0.001002 # dont know what to put now just putted the robot z pose in gazebo sim
+robot_vel = Twist()
 
-uv_robot = []
-uv_target = []
-interaction_matrix = []
-error = []
+robot_vel.linear.x = 0
+robot_vel.linear.y = 0
+robot_vel.linear.z = 0
 
-def controller(robot, target, alpha=0.7):
-    global interaction_matrix
-    global error
-    global target_reached
-    interaction_matrix.clear()
-    error.clear()
+robot_vel.angular.x = 0
+robot_vel.angular.y = 0
+robot_vel.angular.z = 0
+
+vel_x = 0
+vel_z = 0
+
+def controller(homogenous_robot,homogenous_target):
+    global robot_vel
+    global parking_done
+    global inital_orientation
+    global vel_x
+    global vel_z 
    
-    for i in range(3):  # using only 3 corners not 4
-        error.append(robot[i][0] - target[i][0])
-        error.append(robot[i][1] - target[i][1])
+    homogenous_robot_inv = np.linalg.inv(homogenous_robot)
+    Tcurgoal = np.dot(homogenous_robot_inv, homogenous_target)
 
-    calculate_interaction_matrix(robot)
-   
-    error_np = np.array(error).reshape(6,1)
-    interaction_matrix_np = np.array(interaction_matrix).reshape(6,6)
-
-    interaction_matrix_np = np.linalg.inv(interaction_matrix_np) #inverse of the interaction matrix
-
-    print("error",error_np)
-
-    error_norm = np.linalg.norm(error_np)
-
-    robot_vel = Twist()
-
-    if error_norm < 100:
-        robot_vel.linear.x = 0
-        robot_vel.linear.y = 0
-        robot_vel.linear.z = 0
-
-        robot_vel.angular.x = 0
-        robot_vel.angular.y = 0
-        robot_vel.angular.z = 0
-        
-        pub.publish(robot_vel)
-        print("robot reached th target ciaou")
-        rospy.signal_shutdown("robot reached th target ciaou")
-        
-
-
-    print("error norm", error_norm)
-    print("interaction matrix",interaction_matrix_np)
-
+    deltax =  Tcurgoal[0][3]
+    deltay =  Tcurgoal[1][3]
     
-    robot_velocity = -alpha * np.matmul(interaction_matrix_np, error_np)
+    alfa = np.arctan2(deltay, deltax)
+    
+    print("ALFA", np.degrees(alfa))
 
+    p = math.sqrt(deltax**2 + deltay**2) 
 
+    print("DISTANCE", p)
 
-    print("ROBOT VELOCITY", robot_velocity) 
+    if not inital_orientation:
+        if np.fabs(math.degrees(alfa)) > 5:
+            k_alpha = 1
+            v = 0
+            w = k_alpha * alfa
+        else:
+            inital_orientation = True
+            print("INITIAL ORIENTATION DONE")
+            w = 0
+            v = 0
 
-    robot_vel.linear.x = robot_velocity[0][0]
-    robot_vel.linear.y = robot_velocity[1][0]
-    # robot_vel.linear.z = robot_velocity[2][0]
+        if w > 2.84:
+            w = 2.84
+        elif w < -2.84:
+            w = -2.84 
 
-    # robot_vel.angular.x = robot_velocity[3][0]
-    # robot_vel.angular.y = robot_velocity[4][0]
-    robot_vel.angular.z = robot_velocity[5][0]
+        robot_vel.angular.z = w  
+        robot_vel.linear.x = v  
 
-    pub.publish(robot_vel)
+        pub.publish(robot_vel)  
+        rospy.sleep(0.01)
+    else:
+        if  p < 0.045:
+            robot_vel.linear.x = 0
+            robot_vel.angular.z = 0
+            pub.publish(robot_vel)
+            rospy.sleep(0.01)
+            print("ROBOT REACHED THE TARGET")
+            inital_orientation = False
+            return True
+        else:
+            if np.fabs(math.degrees(alfa)) > 15:
+                if vel_x == 0:
+                    v = 0
+                    k_alpha = 0.8
+                    w = k_alpha * alfa
+                else:
+                    v = 0      
+                    robot_vel.linear.x = v
+                    pub.publish(robot_vel)  
+                    rospy.sleep(0.01)
+                    return
+            else:    
+                w = 0  
+                
+                k_p = 0.8
+                v = k_p * p
+    
+        if v > 0.22:
+            v = 0.22
+        elif v < -0.22:
+            v = -0.22   
 
+        if w > 2.84:
+            w = 2.84
+        elif w < -2.84:
+            w = -2.84     
 
+        robot_vel.angular.z = w  
 
-def calculate_interaction_matrix(robot):
-    for i in range(3):
-      interaction_matrix.append([-1/Z, 0, robot[i][0]/Z,  robot[i][0]*robot[i][1], -(1 + robot[i][0]**2),  robot[i][1]])
-      interaction_matrix.append([0, -1/Z, robot[i][1]/Z,  1 + robot[i][1]**2,  -robot[i][0]*robot[i][1], -robot[i][0]])  
-  
+        robot_vel.linear.x = v  
+
+        pub.publish(robot_vel)  
+        rospy.sleep(0.01)
+    return False
+
+def parking(homogenous_robot,homogenous_target):
+
+    homogenous_robot_inv = np.linalg.inv(homogenous_robot)
+    Tcurgoal = np.dot(homogenous_robot_inv, homogenous_target)
+
+    rotation_matrix = [[Tcurgoal[0][0], Tcurgoal[0][1], Tcurgoal[0][2]], [Tcurgoal[1][0], Tcurgoal[1][1], Tcurgoal[1][2]], [Tcurgoal[2][0], Tcurgoal[2][1], Tcurgoal[2][2]]]    
+    r = R.from_matrix(rotation_matrix)
+    euler_degrees = r.as_euler('xyz', degrees=True)
+       
+    teta_error = euler_degrees[2]
+
+    print("THETA ROBOT GOAL", math.degrees(teta_error))
+
+    if np.fabs(math.degrees(teta_error)) < 5:
+        robot_vel.angular.z = 0  
+        pub.publish(robot_vel)   
+        print("PARKING DONE")
+        return True 
+    else:
+        k_teta = 0.8
+        w = k_teta * math.radians(euler_degrees[2])  
+
+        if w > 2.84:
+            w = 2.84
+        elif w < -2.84:
+            w = -2.84 
+
+        robot_vel.linear.x = 0
+        robot_vel.angular.z = w  
+        pub.publish(robot_vel)   
+        rospy.sleep(0.01) 
+        return False
+
+count = 0
 
 def callback(msg):   
     global target_assigned
     global robot_assigned   
+    global count
+    global target_reached
+
 
     if msg.id == ROBOT_MARKER_ID:
-     #   print("robot uv") 
-        uv_robot.clear()
-        uv_robot.append((msg.corner1.x, msg.corner1.y))
-        uv_robot.append((msg.corner2.x, msg.corner2.y))
-        uv_robot.append((msg.corner3.x, msg.corner3.y))
+        Rmat_robot = utils.rot_matrix(msg.rvec)
+        homogenous_robot = utils.homogenous_matrix(Rmat_robot, msg.tvec)   
         robot_assigned = True
-      #  uv_robot.append((msg.corner4.x, msg.corner4.y))
-    elif msg.id == TARGET_MARKER_ID:  # no need to assign target possition again and again
-        #   print("target uv") 
-     #   if not target_assigned:
-        uv_target.clear()
-        uv_target.append((msg.corner1.x, msg.corner1.y))
-        uv_target.append((msg.corner2.x, msg.corner2.y))
-        uv_target.append((msg.corner3.x, msg.corner3.y))
-    #  uv_target.append((msg.corner4.x, msg.corner4.y))
-        target_assigned = True
+    elif msg.id == TARGET_MARKER_ID:  
+        pass     
     else:
         raise ValueError("check your marker IDs")    
 
-    if target_assigned and robot_assigned:
-        controller(uv_robot, uv_target)
-        robot_assigned = False # we should be sure if the new robot position came before calling controller serially
-        target_assigned = False # no need if the target doesnt move
-        
+    if robot_assigned:
+        if not target_reached:
+            print("to target", count)
+            print("total number of targets", len(target_matrices))
+            result = controller(homogenous_robot,target_matrices[count])
+            if result:
+                count += 1
+            if count == len(target_matrices):
+                print("Robot reached the target, parking starts")
+                target_reached = True
+        elif not parking_done:
+            result = parking(homogenous_robot,target_matrices[count])
+            if result:
+                print("Parking is done, mission completeeeed")
+                rospy.signal_shutdown("DONE")
+        robot_assigned = False 
 
 
-rospy.init_node('controller')
+def callback2(msg):
+    global vel_x
+    global vel_z 
+
+    vel_x = msg.linear.x
+    vel_z = msg.angular.z
+
+utils.init()
+rospy.init_node('controller5')
 pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
-rate = rospy.Rate(10)
 
+target_matrices = create_map.map()
 
-sub = rospy.Subscriber('/detected_marker', detectedMarker, callback)
+sub = rospy.Subscriber('/estimated_pose', MarkerPose, callback)
+sub2 = rospy.Subscriber('/cmd_vel', Twist, callback2)
 rospy.spin()
-
-  

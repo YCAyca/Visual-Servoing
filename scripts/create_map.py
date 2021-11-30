@@ -1,11 +1,8 @@
 import cv2
 import numpy as np
-from PIL import Image, ImageDraw
-import math
+from PIL import Image
 import astar
 import utils
-from PIL import Image, ImageDraw, ImageFilter
-from vs_project.msg import MarkerPose
 
 ROBOT_MARKER_ID = 0
 TARGET_MARKER_ID = 1 
@@ -104,7 +101,7 @@ def map():
     cv2.waitKey(0)    
 
     window_area = list()
-    maze = [[1 for x in range(int(w/step_size)+1)] for y in range(int(h/step_size)+1)]
+    maze = [[0 for x in range(int(w/step_size)+1)] for y in range(int(h/step_size)+1)]
 
     maze_h = len(maze)
     maze_w = len(maze[0])
@@ -121,26 +118,16 @@ def map():
                     continue
                 window_area.append(im_bw[k+j][i+j])
             if 0 in window_area:
-                maze[int(k/step_size)][int(i/step_size)] = 0
+                maze[int(k/step_size)][int(i/step_size)] = 1
             else:
-                maze[int(k/step_size)][int(i/step_size)] = 1    
+                maze[int(k/step_size)][int(i/step_size)] = 0    
             window_area.clear()    
 
     print("maze", np.array(maze))
 
-    for i in range(maze_h):
-        for k in range(maze_w):
-            if maze[i][k] == 0:
-                maze[i][k] = 1
-            else:
-                maze[i][k] = 0
-
     maze = np.array(maze)
 
     maze_t = maze.T
-
-    print("maze inversed",maze)                
-
 
     print("robot indexes", robot_indexes)
     print("target indexes", target_indexes)
@@ -154,6 +141,9 @@ def map():
 
     maze = cv2.circle(maze, end, radius=0, color=(255,0, 0), thickness=-1)
 
+    cv2.imshow("maze with robot and target positions", maze)
+    cv2.waitKey(0)   
+
     """ apply A start algorithm """
 
     path = astar.astar(maze_t, start, end)
@@ -163,6 +153,9 @@ def map():
 
     for i,k in path:
         path_draw[k][i] = 255
+
+    cv2.imshow("calculated path", np.array(path_draw, dtype='f'))
+    cv2.waitKey(0)     
 
     """ visualize the calculated path """
 
