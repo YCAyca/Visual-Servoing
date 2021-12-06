@@ -85,7 +85,7 @@ def map():
 
     y_start = 0
     y_end = h
-    step_size = 40
+    step_size = 35
 
     for x in range(0, w, step_size):
         cv2.line(grayscale, (x, y_start), (x, y_end), (0, 255, 0), thickness=1)
@@ -134,6 +134,9 @@ def map():
 
     start = (int(robot_indexes[0]/step_size), int(robot_indexes[1]/step_size)) 
     end = (int(target_indexes[0]/step_size), int(target_indexes[1]/step_size)) 
+
+    print(start)
+    print(end)
 
     maze = np.array(maze, dtype='f')
 
@@ -206,7 +209,6 @@ def map():
             
     cv2.imshow("pose estimated markers", env2)
     cv2.waitKey(0) 
-    cv2.destroyAllWindows() 
+   # cv2.destroyAllWindows() 
 
     return target_matrices
-map()

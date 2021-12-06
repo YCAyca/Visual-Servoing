@@ -8,6 +8,7 @@ from tf.transformations import euler_from_quaternion
 from scipy.spatial.transform import Rotation as R
 import utils
 import create_map
+import cv2
 
 ROBOT_MARKER_ID = 0
 TARGET_MARKER_ID = 1  
@@ -56,7 +57,7 @@ def controller(homogenous_robot,homogenous_target):
 
     if not inital_orientation:
         if np.fabs(math.degrees(alfa)) > 5:
-            k_alpha = 1
+            k_alpha = 1.2
             v = 0
             w = k_alpha * alfa
         else:
@@ -131,9 +132,9 @@ def parking(homogenous_robot,homogenous_target):
        
     teta_error = euler_degrees[2]
 
-    print("THETA ROBOT GOAL", math.degrees(teta_error))
+    print("THETA ROBOT GOAL",teta_error)
 
-    if np.fabs(math.degrees(teta_error)) < 5:
+    if np.fabs(teta_error) < 5:
         robot_vel.angular.z = 0  
         pub.publish(robot_vel)   
         print("PARKING DONE")
@@ -182,10 +183,11 @@ def callback(msg):
                 print("Robot reached the target, parking starts")
                 target_reached = True
         elif not parking_done:
-            result = parking(homogenous_robot,target_matrices[count])
+            result = parking(homogenous_robot,target_matrices[count-1])
             if result:
                 print("Parking is done, mission completeeeed")
                 rospy.signal_shutdown("DONE")
+                cv2.destroyAllWindows() 
         robot_assigned = False 
 
 
