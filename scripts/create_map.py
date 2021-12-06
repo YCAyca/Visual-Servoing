@@ -149,6 +149,8 @@ def map():
     path = astar.astar(maze_t, start, end)
     print(path)
 
+    path = path[:-1]
+
     path_draw = [[0 for x in range(maze_w)] for y in range(maze_h)]
 
     for i,k in path:
@@ -207,3 +209,4 @@ def map():
     cv2.destroyAllWindows() 
 
     return target_matrices
+map()

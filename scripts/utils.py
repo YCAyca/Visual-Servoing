@@ -8,7 +8,7 @@ def init():
 	global ENV_IMAGE_NAME
 	global MARKER_IMAGE_NAME
 
-	ENV_IMAGE_NAME = "/home/yca/catkin_ws/src/vs_project/env.png"
+	ENV_IMAGE_NAME = "/home/yca/catkin_ws/src/vs_project/obs4.png"
 	MARKER_IMAGE_NAME ="/home/yca/catkin_ws/src/vs_project/marker.png"
 
 ARUCO_DICT = {
