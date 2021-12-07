@@ -212,3 +212,5 @@ def map():
    # cv2.destroyAllWindows() 
 
     return target_matrices
+
+map()

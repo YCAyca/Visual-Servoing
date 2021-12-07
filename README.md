@@ -11,11 +11,11 @@
     * Real Time Image Handling
     * Map Creation
     * Shortest Path Finding with A* Algorithm
-    * Pose Estimation of Robot and Way Points
     * Robot Navigation to the Way Points
     * Parking
 
-* Resources & Conclusion 
+* Demo Video
+ 
 
 
 ## Introduction
@@ -77,5 +77,158 @@ Our intrinsic camera calibration parameters obtained and used during the project
 ### Real Time Image Handling
 
 
-Using the fish eye camera on the top of the environment, we obtain the first image to extract initial robot position and target position using the <b> Aruco Markers having 15x15 cm size </b>. For this purpose we have a subscriber listens to the <b> camera/image_raw </b> topic (the topic where our camera publishes the images). In the callback function of this subscriber, we detect the 4 corner of the markers as the pixel
-coordinates in the image. This first image and initial pixel positions are used for map creation in the next step.
+Using the fish eye camera on the top of the environment, we obtain real time images coming from <b> camera/image_raw </b> topic using a subscriber listens to this topic. The first image is saved as <b> env.png </b> to be used for map creation step. Until the map is created, no other program starts to run and the images comes from the topic don't be used. 
+
+After processing the first image to create the map, this program works during the whole process to maintain real time images and to calculate the current position of the robot. In this essence, the program detects in callback function of the subscriber, the 4 corner of the  <b> Aruco Markers having 15x15 cm size pasted on the top of the robot </b> which gives us the pixel wise - image frame position of the robot, then convert it to the camera frame 3D positions. These current positions will be used to navigate the robot step.
+
+<b> real_time_image_subscriber.py </b> is the main source file for this step.
+
+### Map Creation
+
+Using  <b> env.png </b> image the following steps are performed to create the <b> binary map </b> of the environment
+
+<img src="images/env.png" width=50% height=50%>
+
+* Robot’s and target’s marker are detected. Since  <b> the robot’s marker has the  ID 0 and
+target’s marker has the ID 1 </b>, we can easily distinguish which is the robot’s marker detection
+and which is the target’s marker detection.
+
+  <img src="images/initial_positions.png" width=50% height=50%>
+
+* We detect red boxes applying an RGB low – high value mask to our image. After
+applying this mask, we obtain an image where only the obstacles, robot’s and target’s center
+points are visible while other pixels are all black. At the same time we draw grid map on this grayscale image to see how our image will be compressed to have an appropriate maze to use with A* algorithm
+
+  <img src="images/grid_map.png" width=50% height=50%>
+
+* This grid map has 40x40 boxes which is almost the obstacle size in pixels and its only to visualize the binary map in real image size before compress it to obtain the binary maze (a python list having 1 for obstacles, robot and target position and 0 for otherwise). In this essence, we simply travel through our image with a 40x40 window size, we put 1 if any obstacle pixel is found in this window
+area and 0 otherwise. 
+
+  <img src="images/maze1.png" width=50% height=50%>  <img src="images/maze2.png" width=40% height=40%>
+
+
+### Shortest Path Finding with A* Algorithm
+
+The A* star algorithm implementation is taken from this link: https://medium.com/@nicholas.w.swift/easy-a-star-pathfinding-7e6689c7f7b2 and to use that, we need our python list maze, robot's and target position's in this maze. We obtain robot's and target's positions directly by dividing their real image positions to grid map box size:
+
+``` python
+
+if markerID == ROBOT_MARKER_ID:
+cv2.putText(env,  "R", (topLeft[0], topLeft[1] - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+global robot_indexes
+robot_indexes = (cX,cY)
+
+elif markerID == TARGET_MARKER_ID:
+cv2.putText(env, "T", (topLeft[0], topLeft[1] - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2) 
+global target_indexes
+target_indexes = (cX,cY)  
+
+......
+......
+
+start = (int(robot_indexes[0]/step_size), int(robot_indexes[1]/step_size)) 
+end = (int(target_indexes[0]/step_size), int(target_indexes[1]/step_size)) 
+
+```
+
+A* algorithm gives us the way points of the shortest path as a Python list again. 
+
+<img src="images/calculated_path.png" width=50% height=50%> 
+
+We convert this maze point indexes to the real image size indexes by multiplying the way point coordinates by grid map box size (40x40 pixels). 
+
+<img src="images/real_path.png" width=40% height=40%>
+
+The last step is to <b> convert these image frame way points to the camera frame positions </b> For this part, we wanted to use the same method where we calculate the Robot Pose from robot's image frame (pixel wise) position so we treated the way points as marker points by copying the marker images to the initial image on waypoint coordinates.
+
+<img src="images/way_points_as_markers.png" width=40% height=40%> 
+
+ Then cv2.aruco.estimatePoseSingleMarkers() function is used as well as in Robot Pose estimation to obtain rotational and translational vector of the marker's pose. 
+
+<img src="images/pose_of_waypoints.png" width=40% height=40%>
+
+
+Having all the way points and their positions in the camera frame, we are ready to navigate the robot through these way points in the next step.
+
+The main code map creating is <b> create_map.py </b> which calls astar function inside.
+
+### Robot Navigation to the Way Points
+
+After finding the path to follow, we take the current position of the robot coming from
+real_time_image_subscriber.py and way point positions from create_map module. We calculate the the robot position in the first way point frame which gives us the difference in x and y axes as well as the rotation in z axes which are the all we need to calculate the linear x and angular z speed of the robot in order to move through the target direction.
+This calculation is made  <b> by multiplication the inverse of the homogeneous robot position
+matrix by the homogeneous target matrix </b>.
+
+Homogenous Matrix of Robot or Way Point:
+
+<img src="images/homogenous_matrix.png" width=30% height=30%>
+
+
+Robot to Target Homogenous Matrix:
+
+<img src="images/homocurgoal.png" width=50% height=50%>
+
+
+Using <b> arctan2(deltay / deltax) </b>, we calculate the orientation angle that the robot should
+take, we wait until the robot fixes its angle until the error goes lower than 5 degrees, then let
+it go straight forward on x axis direction.  
+<br>
+During the orientation step, we calculate the angular z axis speed velocity of robot using <b> w = k_alpha * alfa </b> equation which gives us the  <b> velocity in radians </b>. Here, alfa is the result comes from <b> alfa = np.arctan2(deltay, deltax) </b> and <b> k_alpha </b> is a constant we determined as 1.2
+During this step, linear x velocity is 0 since we are waiting the robot to fix its orientation
+before start moving towards the target.Once the orientation angle is fixed, we calculate the linear x speed to move the robot forward. This velocity v is calculated using <b> v = k_p * p 
+</b> where <b> p is the euclidian distance </b> between robot and target pose and k_p is a constant we determined as 0.8. To calculate the euclidian distance we use deltax and deltay with <b> p = math.sqrt(deltax**2 + deltay**2) </b>. The threshold to decide if the robot is reached the target is 0.045 meter.  
+<br>
+In general, if the robot fixes the orientation angle, linear x speed is set to 0 and if the
+robot moves straight forward, the angular z speed is set to 0. We check the orientation
+error after the initial orientation, while the robot goes forward, and if the error starts to
+increase again, we stop the robot’s forward speed and let it fix the orientation again. For that
+step, the threshold for the orientation error is 15 degrees.
+
+This process is running in a loop for each real time image obtained by the subscriber until
+the robot reaches every way point and the final target position at the end.
+
+The main code for this task is implemented in <b> controller.py  </b> file.
+
+!!! Since the Turtlebot3’s maximum angular velocity is 2.84 radians/sec and maximum linear
+velocity is 0.22 m/sec, we determined the following constraints to be sure we don’t publish
+any velocity information that may harm the robot.
+
+``` python
+
+if v > 0.22:
+v = 0.22
+elif v < -0.22:
+v = -0.22
+if w > 2.84:
+w = 2.84
+elif w < -2.84:
+w = -2.84
+
+```
+
+### Parking
+
+After reaching the final target position, the robot is parking according to the rotational
+direction of the target position. We obtain this information on deltaΘ coming from the robot-
+to-target homogenous matrix unlike the teta error which was coming from the arctan of
+deltay and deltax during the path finding. The basic difference between these two angle
+errors is that during the path finding, we rotate the robot in the target position direction by
+not taking account in which direction the target positions oriented exactly. In the parking
+step, we orient the robot to look exactly the same direction with the last target position. For
+this purpose, we stop the robot’s linear x speed and only adjust angular z speed until the
+error goes lower than 5 degrees.
+
+## Demo Video
+
+Screen Record
+
+<video src="
+https://user-images.githubusercontent.com/20625822/145039947-8ccdeecd-82e4-4465-96a2-528d08728771.mp4" width="100%" height="100%">
+
+Environment Record
+
+<video src="
+https://user-images.githubusercontent.com/20625822/145040514-c2bf7cc3-67a7-48c5-8d64-d74ba7110410.mp4" width="100%" height="100%">
+
+
+
