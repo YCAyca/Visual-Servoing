@@ -87,24 +87,24 @@ After processing the first image to create the map, this program works during th
 
 Using  <b> env.png </b> image the following steps are performed to create the <b> binary map </b> of the environment
 
-<img src="images/env.png" width=50% height=50%>
+<img src="images/env.png" width=35% height=35%>
 
 * Robot’s and target’s marker are detected. Since  <b> the robot’s marker has the  ID 0 and
 target’s marker has the ID 1 </b>, we can easily distinguish which is the robot’s marker detection
 and which is the target’s marker detection.
 
-  <img src="images/initial_positions.png" width=50% height=50%>
+  <img src="images/initial_positions.png" width=35% height=35%>
 
 * We detect red boxes applying an RGB low – high value mask to our image. After
 applying this mask, we obtain an image where only the obstacles, robot’s and target’s center
 points are visible while other pixels are all black. At the same time we draw grid map on this grayscale image to see how our image will be compressed to have an appropriate maze to use with A* algorithm
 
-  <img src="images/grid_map.png" width=50% height=50%>
+  <img src="images/grid_map.png" width=35% height=35%>
 
 * This grid map has 40x40 boxes which is almost the obstacle size in pixels and its only to visualize the binary map in real image size before compress it to obtain the binary maze (a python list having 1 for obstacles, robot and target position and 0 for otherwise). In this essence, we simply travel through our image with a 40x40 window size, we put 1 if any obstacle pixel is found in this window
 area and 0 otherwise. 
 
-  <img src="images/maze1.png" width=50% height=50%>  <img src="images/maze2.png" width=40% height=40%>
+  <img src="images/maze1.png" width=35% height=35%>  <img src="images/maze2.png" width=35% height=35%>
 
 
 ### Shortest Path Finding with A* Algorithm
@@ -133,19 +133,19 @@ end = (int(target_indexes[0]/step_size), int(target_indexes[1]/step_size))
 
 A* algorithm gives us the way points of the shortest path as a Python list again. 
 
-<img src="images/calculated_path.png" width=50% height=50%> 
+<img src="images/calculated_path.png" width=35% height=35%> 
 
 We convert this maze point indexes to the real image size indexes by multiplying the way point coordinates by grid map box size (40x40 pixels). 
 
-<img src="images/real_path.png" width=40% height=40%>
+<img src="images/real_path.png" width=30% height=30%>
 
 The last step is to <b> convert these image frame way points to the camera frame positions </b> For this part, we wanted to use the same method where we calculate the Robot Pose from robot's image frame (pixel wise) position so we treated the way points as marker points by copying the marker images to the initial image on waypoint coordinates.
 
-<img src="images/way_points_as_markers.png" width=40% height=40%> 
+<img src="images/way_points_as_markers.png" width=30% height=30%> 
 
  Then cv2.aruco.estimatePoseSingleMarkers() function is used as well as in Robot Pose estimation to obtain rotational and translational vector of the marker's pose. 
 
-<img src="images/pose_of_waypoints.png" width=40% height=40%>
+<img src="images/pose_of_waypoints.png" width=30% height=30%>
 
 
 Having all the way points and their positions in the camera frame, we are ready to navigate the robot through these way points in the next step.
@@ -161,12 +161,12 @@ matrix by the homogeneous target matrix </b>.
 
 Homogenous Matrix of Robot or Way Point:
 
-<img src="images/homogenous_matrix.png" width=30% height=30%>
+<img src="images/homogenous_matrix.png" width=20% height=20%>
 
 
 Robot to Target Homogenous Matrix:
 
-<img src="images/homocurgoal.png" width=50% height=50%>
+<img src="images/homocurgoal.png" width=35% height=35%>
 
 
 Using <b> arctan2(deltay / deltax) </b>, we calculate the orientation angle that the robot should
