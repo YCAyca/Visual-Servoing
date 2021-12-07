@@ -216,13 +216,11 @@ After reaching the final target position, the robot is parking according to the 
 
 Screen Record
 
-<video src="
-https://user-images.githubusercontent.com/20625822/145039947-8ccdeecd-82e4-4465-96a2-528d08728771.mp4" width="100%" height="100%">
+<video src="https://user-images.githubusercontent.com/20625822/145039947-8ccdeecd-82e4-4465-96a2-528d08728771.mp4" width="100%" height="100%">
 
 Environment Record
 
-<video src="
-https://user-images.githubusercontent.com/20625822/145040514-c2bf7cc3-67a7-48c5-8d64-d74ba7110410.mp4" width="100%" height="100%">
+<video src="https://user-images.githubusercontent.com/20625822/145040514-c2bf7cc3-67a7-48c5-8d64-d74ba7110410.mp4" width="100%" height="100%"> 
 
 If you would like to test the code, please run the following commands in the same order:
 
