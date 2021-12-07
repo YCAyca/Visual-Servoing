@@ -168,9 +168,11 @@ Robot to Target Homogenous Matrix:
 
 <img src="images/homocurgoal.png" width=35% height=35%>
 
+<br>
 
-Using <b> arctan2(deltay / deltax) </b>, we calculate the orientation angle that the robot should
-take, we wait until the robot fixes its angle until the error goes lower than 5 degrees, then let
+!!! Note that cv2.aruco.estimatePoseSingleMarkers() function returns <b> 3x1 rotational and translational vectors while for 3x4 homogenous matrix we need rotational matrix. </b> We convert our rotational vector to the rotational matrix using cv2.Rodrigues() function which is useful for both side of conversion. (rotational matrix to rotational vector or rotational vector to rotational matrix)
+
+Using <b> arctan2(deltay / deltax) </b>, we calculate the orientation angle that the robot should take, we wait until the robot fixes its angle until the error goes lower than 5 degrees, then let
 it go straight forward on x axis direction.  
 <br>
 During the orientation step, we calculate the angular z axis speed velocity of robot using <b> w = k_alpha * alfa </b> equation which gives us the  <b> velocity in radians </b>. Here, alfa is the result comes from <b> alfa = np.arctan2(deltay, deltax) </b> and <b> k_alpha </b> is a constant we determined as 1.2
@@ -208,15 +210,7 @@ w = -2.84
 
 ### Parking
 
-After reaching the final target position, the robot is parking according to the rotational
-direction of the target position. We obtain this information on deltaΘ coming from the robot-
-to-target homogenous matrix unlike the teta error which was coming from the arctan of
-deltay and deltax during the path finding. The basic difference between these two angle
-errors is that during the path finding, we rotate the robot in the target position direction by
-not taking account in which direction the target positions oriented exactly. In the parking
-step, we orient the robot to look exactly the same direction with the last target position. For
-this purpose, we stop the robot’s linear x speed and only adjust angular z speed until the
-error goes lower than 5 degrees.
+After reaching the final target position, the robot is parking according to the rotational direction of the target position. We convert the rotational matrix of final homogenous matrix (robot to target homogenous matrix) to the rotational vector using <b> cv2.Rodrigues </b> function again. This 3x1 rotational vector's last index contains the rotational error in z axes between robot and target orientation. Using this error, we stop the robot’s linear x speed and only adjust angular z speed until the error goes lower than 5 degrees. 
 
 ## Demo Video
 
@@ -230,5 +224,11 @@ Environment Record
 <video src="
 https://user-images.githubusercontent.com/20625822/145040514-c2bf7cc3-67a7-48c5-8d64-d74ba7110410.mp4" width="100%" height="100%">
 
+If you would like to test the code, please run the following commands in the same order:
 
+1) roscore 
+2) roslaunch turtlebot3_bringup turtlebot3_robot.launch (on robot side after connecting to the turtlebot3 with ssh connection)
+3) roslaunch ueye_cam rgb8.launch (to open the camera) (on remote PC)
+4) rosrun vs_project scripts/real_time_image_subscriber.py (on remote PC)
+5) rosrun vs_project scripts/controller.py (on remote PC)
 
